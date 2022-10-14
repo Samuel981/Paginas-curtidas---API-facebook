@@ -1,32 +1,53 @@
-from ensurepip import version
-from pickle import TRUE
-import urllib3
-import facebook
-import requests
-import access_token as token
-import os
+import access_token as tk
 import sys
+import requests
+import socket
+import os
+afddress = 'www.facebook.com'
 
 sys.stdin.reconfigure(encoding='utf-8')
 sys.stdout.reconfigure(encoding='utf-8')
 
-# Inicializadno o objeto
-try:
-    graph = facebook.GraphAPI(token.ACCESS_TOKEN, version=3.1)
-    myfbgraph = facebook.GraphAPI(token.ACCESS_TOKEN)
-except Exception as e:
-    print(e)
-
 
 def clear(): return os.system('cls')
+
+
+estilo = {'default': '\033[m', 'bold': '\033[1m'}
+
+
+def soc():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # print("Socket criado")
+    except socket.error as e:
+        print("Falha na criacao do socket", (e))
+
+    address = 'https://graph.facebook.com/'
+    try:
+        host_ip = socket.gethostbyname(afddress)
+    except socket.gaierror:
+        print("Erro no host")
+        sys.exit()
+
+    s.connect((host_ip, 80))
+    # print("O socket conectou com o FB:", (host_ip))
+    try:
+        s.send(b"GET / HTTP/1.1\r\nHost:www.facebook.com\r\n\r\n")
+    except Exception as e:
+        print(e)
+    response = s.recv(4096)
+    s.close()
+    # print(response.decode())
 
 
 def likes_categoria():
     clear()
     print('\n----- LISTANDO CATEGORIAS -----\n')
     try:
-        mylikes = myfbgraph.get_connections(
-            id="me", connection_name="likes", fields="name,category", limit=60)['data']
+        response = requests.get(
+            'https://graph.facebook.com/me?fields=likes.limit(65){name, category}&access_token='+tk.ACCESS_TOKEN)
+        responsejson = response.json()
+        mylikes = responsejson['likes']['data']
         # Dividir categorias
         categorias = []
         for like in mylikes:
@@ -40,12 +61,16 @@ def likes_categoria():
             espacador = ' - '
             if i < 10:
                 espacador = '  - '
-            print(str(i)+espacador+categoria)
+            print('{}{}{}'.format(estilo['bold'],
+                  str(i), estilo['default']), end="")
+            print(espacador+categoria)
             i += 1
-        opcaoCatg = int(input('Categoria: '))
+        opcaoCatg = int(input('Categoria (digite o número correspondente): '))
         clear()
         selecionada = categorias[opcaoCatg-1]
-        print(str(opcaoCatg)+' - '+selecionada)
+        print(str(opcaoCatg)+' - ', end="")
+        print('{}{}{}'.format(estilo['bold'],
+                              selecionada, estilo['default']))
         print('-'*40)
         lista = []
         for like in mylikes:
@@ -68,13 +93,15 @@ def likes():
     clear()
     limite = input('Limite a quantidade de páginas (0-100): ')
     clear()
-    print('\n----- LISTANDO PAGINAS POR CATEGORIA -----\n')
+    print('{}\n----- LISTANDO PAGINAS POR CATEGORIA -----{}\n'.format(
+        estilo['bold'], estilo['default']))
     try:
-        mylikes = myfbgraph.get_connections(
-            id="me", connection_name="likes", fields="name,category", limit=limite)['data']
+        response = requests.get(
+            'https://graph.facebook.com/me?fields=likes.limit('+limite+'){name, category}&access_token='+tk.ACCESS_TOKEN)
+        responsejson = response.json()
+        mylikes = responsejson['likes']['data']
         # for like in mylikes:
-        #     print(like['name'], like['category'])
-        # Dividir categorias
+        #     print(like['name'])
         categorias = []
         for like in mylikes:
             categoriaResposta = like['category']
@@ -84,7 +111,8 @@ def likes():
         categorias.sort()
         lista = []
         for categoria in categorias:
-            print(categoria)
+            print('{}{}{}'.format(estilo['bold'],
+                  categoria, estilo['default']))
             print('-'*40)
             for like in mylikes:
                 if like['category'] == categoria:
@@ -103,7 +131,7 @@ def likes():
 
 
 def menu():
-    print('\n1 - Listar páginas de uma categoria específica\n2 - Listar todas as páginas por categoria\n3 - Sair\n')
+    print('\n1 - Listar páginas de uma categoria \n2 - Listar todas as páginas por categoria\n3 - Sair\n')
     opcao = int(input('Opção: '))
     if opcao == 1:
         likes_categoria()
@@ -115,5 +143,7 @@ def menu():
 
 
 clear()
-print("Aplicação de coleta e organização de paginas do Facebook")
+soc()
+print("{}Aplicação de coleta e organização de paginas do Facebook{}".format(
+    estilo['bold'], estilo['default']))
 menu()
